@@ -14,6 +14,22 @@
  limitations under the License.
  */
 
+import swURL from 'sw:../service-worker.js';
+
+// Register service worker, the if below is to check inf browsers supports serviceworker
+if ('serviceWorker' in navigator) {
+  // Wait for the load event to not block other work (until site has been loaded)
+  window.addEventListener('load', async () => {
+    try {
+      // Try to register service worker
+      const registry = await navigator.serviceWorker.register(swURL);
+      console.log('Service worker registered 🍕', registry);
+    } catch (error) {
+      console.error('😿 Service worker registration failed', error);
+    }
+  });
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   // Set up the editor
   const { Editor } = await import('./app/editor.js');
