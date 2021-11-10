@@ -13,34 +13,47 @@ Copyright 2021 Google LLC
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-const CACHE_NAME = 'cache-v1';
-const PRECACHE_RESOURCES = ['/', '/index.html', '/css/style.css', '/js/main.js', '/js/app/editor.js', '/js/lib/actions.js'];
 
-// save all pre-selected resources in cache
-async function saveCache() {
-  const cacheSpace = await caches.open(CACHE_NAME);
-  return cacheSpace.addAll(PRECACHE_RESOURCES);
-}
+import { offlineFallback, warmStrategyCache } from 'workbox-recipes';
+import { CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { registerRoute } from 'workbox-routing';
+import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+import { ExpirationPlugin } from 'workbox-expiration';
 
-// check if there is already a cached resource and then use it, if not then get it from the network
-async function handleRequest(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) return cachedResponse;
-  return fetch(request);
-}
-// Listen for service worker installing so that we can save our resources in cache
-self.addEventListener('install', (event) => {
-  console.log('Service worker install event ⬇');
-  event.waitUntil(saveCache());
+// Set up page cache
+const pageCache = new CacheFirst({
+  cacheName: 'page-cache',
+  plugins: [
+    new CacheableResponsePlugin({
+      statuses: [0, 200],
+    }),
+    new ExpirationPlugin({
+      maxAgeSeconds: 30 * 24 * 60 * 60,
+    }),
+  ],
 });
 
-// the service worker can now handle functional events
-self.addEventListener('activate', (event) => {
-  console.log('Service worker activate event! ✅');
+warmStrategyCache({
+  urls: ['/index.html', '/'],
+  strategy: pageCache,
 });
 
-// When there's an incoming fetch request, try and respond with a precached resource, otherwise fall back to the network
-self.addEventListener('fetch', (event) => {
-  console.log('Fetch intercepted for 🟡: ', event.request.url);
-  event.respondWith(handleRequest(event.request));
+registerRoute(({ request }) => request.mode === 'navigate', pageCache);
+
+// Set up asset cache
+registerRoute(
+  ({ request }) => ['style', 'script', 'worker'].includes(request.destination),
+  new StaleWhileRevalidate({
+    cacheName: 'asset-cache',
+    plugins: [
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
+    ],
+  }),
+);
+
+// Set up offline fallback
+offlineFallback({
+  pageFallback: '/offline.html',
 });
