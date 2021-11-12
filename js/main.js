@@ -69,4 +69,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     (await db.get('settings', 'mode')) || 'night',
   );
 
+  // Set up install prompt
+  const { Install } = await import('./lib/install.js');
+  new Install(document.querySelector('#install'));
 });
