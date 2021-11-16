@@ -16,7 +16,7 @@
 
 import swURL from 'sw:../service-worker.js';
 import { openDB } from 'idb';
-
+import { wrap } from 'comlink';
 
 // Register service worker, the if below is to check inf browsers supports serviceworker
 if ('serviceWorker' in navigator) {
@@ -31,6 +31,13 @@ if ('serviceWorker' in navigator) {
     }
   });
 }
+
+const worker = new SharedWorker('/js/worker.js', {
+  type: 'module',
+});
+
+const compiler = wrap(worker.port);
+
 
 window.addEventListener('DOMContentLoaded', async () => {
   // Set up the database
@@ -54,6 +61,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Save content to database on edit
   editor.onUpdate(async (content) => {
     await db.put('settings', content, 'content');
+    await compiler.set(content);
   });
 
   editor.setContent((await db.get('settings', 'content')) || defaultText);
